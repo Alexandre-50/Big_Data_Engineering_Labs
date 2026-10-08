@@ -66,11 +66,6 @@ Filtrer côté producteur réduit le volume envoyé dans Kafka ; on peut aussi f
 (`.filter(...)`, comme l'exploration 3), ce qui garde tout dans Kafka et permet plusieurs
 consommateurs avec des filtres différents.
 
-Changements par rapport au producteur d'origine : seul le flux `recentchange` est lu
-(les événements `revision-create` n'ont pas de champ `type`, donc le filtre `type='edit'`
-les écartait déjà tous) ; flux en direct par défaut au lieu d'une date fixe ; clé Kafka = titre
-de la page ; `flush()` à la fin au lieu d'attendre 60 s ; Ctrl+C arrête proprement.
-
 ## Étape 12 — fenêtres tumbling et sliding
 
 | | Tumbling (exploration 1) | Sliding (explorations 2 et 4) |
@@ -78,19 +73,3 @@ de la page ; `flush()` à la fin au lieu d'attendre 60 s ; Ctrl+C arrête propre
 | Code | `window(event_time, "1 minute")` | `window(event_time, "5 minutes", "1 minute")` |
 | Recouvrement | non : chaque événement est dans **1** fenêtre | oui : chaque événement est dans **5** fenêtres (durée / pas) |
 | Lecture | photo minute par minute, pics visibles | moyenne mobile, courbe lissée |
-
-Les deux utilisent `withWatermark("event_time", "2 minutes")` : un événement en retard de plus
-de 2 min est ignoré et Spark peut purger l'état des vieilles fenêtres. Sans watermark (démo),
-l'état grossit indéfiniment, ce qui impose le mode `complete`.
-
-Modes de sortie utilisés : `complete` (tout le tableau à chaque batch), `update` (seulement les
-fenêtres modifiées), `append` (nouvelles lignes uniquement, pour le filtre sans agrégation).
-
-## Pièges rencontrés
-
-- `from_unixtime` renvoie une **chaîne** : on caste plutôt `timestamp` en type `timestamp`.
-- Le sink `console` n'accepte que `truncate` = `True`/`False` (pas un nombre) : la colonne
-  `comment` est raccourcie avec `substring`.
-- Le tri (`orderBy`) n'est possible en streaming qu'en mode `complete` : pour les tops, on
-  écrit dans une table `memory` et on trie en SQL.
-- Le top 10 porte sur la fenêtre la plus récente, qui peut encore être en cours de remplissage.
